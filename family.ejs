@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Emergency Contacts | Smart Helmet</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <style>
+    :root {
+      --glass-bg: rgba(255, 255, 255, 0.07);
+      --glass-border: rgba(255, 255, 255, 0.15);
+      --accent-color: #00d2ff;
+    }
+
+    body { 
+      background: radial-gradient(circle at top right, #1a1a2e, #16213e); 
+      color: #fff;
+      font-family: 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      padding-bottom: 50px;
+    }
+
+    .glass-card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 2rem;
+    }
+
+    .input-group {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 12px;
+      padding: 5px;
+      border: 1px solid var(--glass-border);
+    }
+
+    .form-control {
+      background: transparent !important;
+      border: none !important;
+      color: white !important;
+      box-shadow: none !important;
+    }
+
+    .form-control::placeholder { color: rgba(255,255,255,0.4); }
+
+    .btn-add {
+      background: linear-gradient(45deg, #00d2ff, #3a7bd5);
+      border: none;
+      border-radius: 10px !important;
+      padding: 10px 25px;
+      font-weight: 600;
+      transition: 0.3s;
+    }
+
+    .btn-add:hover {
+      box-shadow: 0 0 15px rgba(0, 210, 255, 0.5);
+      transform: scale(1.02);
+    }
+
+    .email-item {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      margin-bottom: 10px;
+      transition: all 0.2s ease;
+    }
+
+    .email-item:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--accent-color);
+    }
+
+    .btn-remove {
+      background: rgba(255, 71, 87, 0.1);
+      border: 1px solid #ff4757;
+      color: #ff4757;
+      border-radius: 8px;
+      transition: 0.3s;
+    }
+
+    .btn-remove:hover {
+      background: #ff4757;
+      color: white;
+    }
+
+    .back-link {
+      color: #b0b0b0;
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: 0.3s;
+    }
+    .back-link:hover { color: #fff; }
+  </style>
+</head>
+<body>
+  
+
+<div class="container mt-5">
+  <a href="dashboard.ejs" onclick="history.back(); return false;" class="back-link mb-4 d-inline-block">
+    <i class="bi bi-arrow-left"></i> Back to Dashboard
+  </a>
+
+  <div class="text-center mb-5">
+    <h2 class="fw-bold"><i class="bi bi-shield-lock text-info"></i> Family Safety Network</h2>
+    <p class="text-muted">In case of an accident, these emails will be notified instantly with your location.</p>
+  </div>
+
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      
+      <div class="glass-card mb-5">
+        <h5 class="mb-3 text-info">Add New Trusted Contact</h5>
+        <div class="input-group">
+          <input type="email" class="form-control" id="newEmail" placeholder="family@example.com">
+          <button class="btn btn-add text-white" onclick="addEmail()">
+            <i class="bi bi-plus-lg me-1"></i> Add Email
+          </button>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">Current Recipients</h4>
+        <span class="badge rounded-pill bg-info text-dark" id="countBadge">0 Contacts</span>
+      </div>
+
+      <div id="emailList" class="list-group">
+        </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  // Correctly handle the JSON data from server
+  const rawEmails = `<%- JSON.stringify(user.familyEmails || []) %>`;
+  const familyEmails = JSON.parse(rawEmails);
+  
+  // Initialize list
+  familyEmails.forEach(email => addEmailToList(email));
+  updateCount();
+
+  function addEmail() {
+    const emailInput = document.getElementById('newEmail');
+    const email = emailInput.value.trim();
+    
+    if (email && validateEmail(email)) {
+      addEmailToList(email);
+      emailInput.value = '';
+      updateCount();
+
+      fetch('/auth/add-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: '<%= user._id %>', email: email })
+      }).then(res => res.text()).then(text => console.log("Added:", text));
+    } else {
+      alert("Please enter a valid email address.");
+    }
+  }
+
+  function addEmailToList(email) {
+    const list = document.getElementById('emailList');
+    const item = document.createElement('div');
+    item.className = 'email-item d-flex justify-content-between align-items-center p-3';
+    item.innerHTML = `
+      <div class="d-flex align-items-center">
+        <i class="bi bi-envelope-at text-info me-3 fs-5"></i>
+        <span class="fw-medium">${email}</span>
+      </div>
+      <button class="btn btn-remove btn-sm px-3" onclick="removeEmail('${email}', this)">
+        <i class="bi bi-trash3"></i> Remove
+      </button>
+    `;
+    list.appendChild(item);
+  }
+
+  function removeEmail(email, button) {
+    fetch('/auth/remove-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: '<%= user._id %>', email: email })
+    }).then(() => {
+      button.closest('.email-item').remove();
+      updateCount();
+    });
+  }
+
+  function updateCount() {
+    const count = document.getElementById('emailList').children.length;
+    document.getElementById('countBadge').innerText = `${count} Contact${count !== 1 ? 's' : ''}`;
+  }
+
+  function validateEmail(email) {
+    return String(email).toLowerCase().match(/\S+@\S+\.\S+/);
+  }
+</script>
+
+</body>
+</html>
